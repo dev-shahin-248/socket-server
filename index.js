@@ -1,56 +1,49 @@
-const http = require('http');
-const express = require('express');
-const { Server } = require('socket.io');
-const axios = require('axios');
-
-const app = express();
-const server = http.createServer(app);
+const { Server } = require("socket.io");
+const axios = require("axios");
 
 const io = new Server(server, {
-  cors: { origin: '*' }
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
 });
 
-io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id);
+io.on("connection", (socket) => {
+  console.log(`Client connected: ${socket.id}`);
 
-  // Join a room specific to admin and user
-  socket.on('join-room', ({ adminId, userId }) => {
-    const roomId = `chat_${Math.min(adminId, userId)}_${Math.max(adminId, userId)}`;
-    socket.join(roomId);
-    console.log(`Client ${socket.id} joined room: ${roomId}`);
+  // ✅ Join a specific chat room
+  socket.on("join-room", ({ chatRoomId }) => {
+    const roomName = `chat_room_${chatRoomId}`;
+    socket.join(roomName);
+    console.log(`Client ${socket.id} joined room: ${roomName}`);
   });
 
-  socket.on('send-message', async (data) => {
-    // data = { sender_id, receiver_id, sender_type: 'admin'|'user', message }
-    console.log('Received message:', data);
+  // ✅ Handle sending message to a chat room
+  socket.on("send-message", async (data) => {
+    // data = { chat_room_id, sender_id, message }
 
-    // Determine room ID based on sender and receiver
-    const roomId = `chat_${Math.min(data.sender_id, data.receiver_id)}_${Math.max(data.sender_id, data.receiver_id)}`;
+    const roomName = `chat_room_${data.chat_room_id}`;
+    console.log(`Received message in ${roomName}:`, data);
 
-    // Broadcast to the specific room
-    io.to(roomId).emit('receive-message', data);
+    // Broadcast the message to others in the room
+    io.to(roomName).emit("receive-message", data);
 
-    // Store message on backend
+    // Store message via Laravel API
     try {
-      await axios.post('http://127.0.0.1:8000/api/store-message', {
+      await axios.post("http://127.0.0.1:8000/api/store-message", {
+        chat_room_id: data.chat_room_id,
         sender_id: data.sender_id,
-        receiver_id: data.receiver_id,
-        message: data.message,
-        sender_type: data.sender_type
+        message: data.message
       });
-      console.log('Store message success:', data);
-    } catch (err) {
-      console.log('Store message error:', err.message);
-      console.error('Error storing message:', err);
 
+      console.log("Message stored successfully.");
+    } catch (err) {
+      console.error("Failed to store message:", err.message);
     }
   });
 
-  socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+  // ✅ Handle disconnect
+  socket.on("disconnect", () => {
+    console.log(`Client disconnected: ${socket.id}`);
   });
-});
-
-server.listen(3000, () => {
-  console.log('Socket server running on http://localhost:3000');
 });

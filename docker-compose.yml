@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  socket-server:
+    build: .
+    container_name: socket-server
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/usr/src/app:delegated
+      - node_modules:/usr/src/app/node_modules
+    restart: always
+    command: npm run dev
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+
+volumes:
+  node_modules:

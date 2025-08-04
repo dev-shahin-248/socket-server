@@ -1,5 +1,3 @@
-// index.js
-
 const http = require('http');
 const express = require('express');
 const { Server } = require('socket.io');
@@ -15,21 +13,36 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
-  socket.on('send-message', async (data) => {
-    // data = { sender_type: 'admin'|'user', message: 'text' }
-    console.log('Received message:', data);
-    // Broadcast to all except sender
-    socket.broadcast.emit('receive-message', data);
+  // Join a room specific to admin and user
+  socket.on('join-room', ({ adminId, userId }) => {
+    const roomId = `chat_${Math.min(adminId, userId)}_${Math.max(adminId, userId)}`;
+    socket.join(roomId);
+    console.log(`Client ${socket.id} joined room: ${roomId}`);
+  });
 
-    // Also emit back to sender for confirmation (optional)
-    socket.emit('receive-message', data);
-    
+  socket.on('send-message', async (data) => {
+    // data = { sender_id, receiver_id, sender_type: 'admin'|'user', message }
+    console.log('Received message:', data);
+
+    // Determine room ID based on sender and receiver
+    const roomId = `chat_${Math.min(data.sender_id, data.receiver_id)}_${Math.max(data.sender_id, data.receiver_id)}`;
+
+    // Broadcast to the specific room
+    io.to(roomId).emit('receive-message', data);
+
     // Store message on backend
     try {
-      await axios.post('http://127.0.0.1:8000/api/store-message', data);
+      await axios.post('http://127.0.0.1:8000/api/store-message', {
+        sender_id: data.sender_id,
+        receiver_id: data.receiver_id,
+        message: data.message,
+        sender_type: data.sender_type
+      });
       console.log('Store message success:', data);
     } catch (err) {
-      console.error('Store message error:', err);
+      console.log('Store message error:', err.message);
+      console.error('Error storing message:', err);
+
     }
   });
 

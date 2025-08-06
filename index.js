@@ -16,6 +16,12 @@ const io = new Server(server, {
   }
 });
 
+app.get("/", (req, res) => {
+  res.json({
+    message: "Socket.IO server is running"
+  });
+});
+
 io.on("connection", (socket) => {
   console.log(`Client connected: ${socket.id}`);
 

@@ -7,27 +7,55 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      # Mount source code for live reload
+      # Mount source code for live reload (development only)
       - .:/usr/src/app:cached
       # Use named volume for node_modules to preserve container's modules
       - node_modules:/usr/src/app/node_modules
+      # Mount logs directory
+      - ./logs:/usr/src/app/logs
     restart: unless-stopped
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=${NODE_ENV:-development}
+      - JWT_SECRET=${JWT_SECRET:-dev-jwt-secret}
+      - API_SECRET_KEY=${API_SECRET_KEY:-dev-api-secret}
+      - LARAVEL_API_URL=${LARAVEL_API_URL:-http://host.docker.internal:8000}
+      - LARAVEL_API_TOKEN=${LARAVEL_API_TOKEN:-}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
+      - MAX_CONNECTIONS_PER_IP=${MAX_CONNECTIONS_PER_IP:-50}
+      - MESSAGE_RATE_LIMIT_MAX=${MESSAGE_RATE_LIMIT_MAX:-100}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
       - CHOKIDAR_USEPOLLING=true  # For better file watching in Docker
-      - DEBUG=socket.io:*
     command: >
-      sh -c "npm install && npm run dev"
+      sh -c "npm install && npm run ${NODE_ENV:-dev}"
     networks:
       - socket-network
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000", "||" , "exit", "1"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health", "||" , "exit", "1"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    # Security settings
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # Set to true in production if possible
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+        reservations:
+          memory: 256M
+          cpus: '0.5'
 
   # Optional: Add a database service if needed later
   # redis:

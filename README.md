@@ -1,15 +1,31 @@
-# Socket.IO Server
+# Secure Socket.IO Server
 
-A self-hosted Socket.IO server with Docker support for development and production environments.
+A production-ready, security-hardened Socket.IO server for real-time chat applications with comprehensive authentication, rate limiting, and monitoring.
 
-## Features
+## 🚀 Features
 
-- 🚀 **Auto-sync**: Package.json changes are automatically synchronized with the container
-- 🔄 **Live Reload**: Nodemon automatically restarts the server when files change
-- 🐳 **Docker Support**: Both development and production Docker configurations
-- 🛡️ **Security**: Runs as non-root user in production
-- 📊 **Health Checks**: Built-in health monitoring
-- 🔧 **Development Tools**: Optimized for development workflow
+### Security Features
+- **JWT Authentication** - Token-based authentication for all connections
+- **Role-based Access Control** - User permissions and role hierarchy
+- **Rate Limiting** - Connection and message rate limiting per IP/user
+- **Input Validation** - Comprehensive data validation with Joi
+- **XSS Protection** - Message sanitization and suspicious content detection
+- **CORS Security** - Configurable origin restrictions
+- **Security Headers** - Helmet.js for HTTP security headers
+- **Audit Logging** - Comprehensive security event logging
+
+### Monitoring & Observability
+- **Structured Logging** - Winston-based logging with security events
+- **Health Checks** - Built-in health and metrics endpoints
+- **Activity Tracking** - User action logging and analytics
+- **Performance Metrics** - Connection, message, and error metrics
+
+### Production Ready
+- **Docker Support** - Multi-stage production Docker builds
+- **Environment Configuration** - Secure secret management
+- **Graceful Shutdown** - Proper signal handling
+- **Resource Limits** - Memory and CPU constraints
+- **Auto-scaling Ready** - Stateless design for horizontal scaling
 
 ## Quick Start
 

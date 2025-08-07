@@ -37,17 +37,6 @@ io.on("connection", (socket) => {
 
     io.to(roomName).emit("receive-message", data);
 
-    try {
-      await axios.post("http://127.0.0.1:8000/api/store-message", {
-        chat_room_id: data.chat_room_id,
-        sender_id: data.sender_id,
-        message: data.message
-      });
-
-      console.log("Message stored successfully.");
-    } catch (err) {
-      console.error("Failed to store message:", err.message);
-    }
   });
 
   socket.on("disconnect", () => {

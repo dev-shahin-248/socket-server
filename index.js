@@ -46,13 +46,14 @@ io.use((socket, next) => {
     return next(new Error("Authentication error: Invalid token"));
   }
 });
-
 io.on("connection", (socket) => {
   console.log(`Client connected: ${socket.id}`);
 
   socket.on("join-room", async ({ chatRoomId }) => {
       const userId = socket.user.sub || socket.user.id; 
+
       try {
+       
         const response = await axios.post(ROOM_ACCESS_URL, {
           user_id: userId,
           chat_room_id: chatRoomId,

@@ -12,6 +12,7 @@ const app = express();
 const server = http.createServer(app);
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
 const ROOM_ACCESS_URL = `${BACKEND_URL}/api/check-room-access`;
+const SECURITY_KEY = process.env.SOCKET_SECURITY_KEY || "sslwireless"; 
 
 // Pass HTTP server to Socket.IO
 const io = new Server(server, {
@@ -79,6 +80,24 @@ app.get("/", (req, res) => {
     message: "Socket.IO server is running"
   });
 });
+
+// Middleware: check secretKey before allowing connection
+io.use((socket, next) => {
+  console.log("Checking secretKey...",socket.handshake.auth);
+  const clientKey = socket.handshake.auth?.secretKey;
+  if (!clientKey) {
+    return next(new Error("Authentication error: secretKey required"));
+  }
+
+  if (clientKey != SECURITY_KEY) {
+    writeLog(`Connection rejected: Invalid secretKey from ${socket.id}`);
+    return next(new Error("Authentication error: Invalid secretKey"));
+  }
+
+  writeLog(`Connection accepted for ${socket.id} using secretKey`);
+  next();
+});
+
 
 io.on("connection", (socket) => {
   writeLog(`Client connected: ${socket.id}`);

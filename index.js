@@ -2,90 +2,110 @@ const http = require("http");
 const express = require("express");
 const { Server } = require("socket.io");
 const axios = require("axios");
-const jwt = require("jsonwebtoken");
+const fs = require("fs");
+const path = require("path");
 require("dotenv").config(); 
 
 const app = express();
 
 // Create HTTP server using Express app
 const server = http.createServer(app);
-const JWT_SECRET = process.env.JWT_SECRET || "TS9ICUzn2zDGKV4fdbIDsc92yoLce8P7NxcIPVXW4RmbukpEnQRVZMBOUvj0PUNJ";
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8000";
 const ROOM_ACCESS_URL = `${BACKEND_URL}/api/check-room-access`;
-
 
 // Pass HTTP server to Socket.IO
 const io = new Server(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+    transports: ["websocket"]
   }
 });
 
+// --- Logging System ---
+const logDir = path.join(__dirname, "logs");
+
+// Ensure logs directory exists
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir);
+}
+
+// Format for filename → y-m-d
+function formatFileDate(date) {
+  const pad = (n) => (n < 10 ? "0" + n : n);
+  return (
+    date.getFullYear() +
+    "-" +
+    pad(date.getMonth() + 1) +
+    "-" +
+    pad(date.getDate())
+  );
+}
+
+// Format for inside logs → d-m-y-h:i:s
+function formatLogDate(date) {
+  const pad = (n) => (n < 10 ? "0" + n : n);
+  return (
+    pad(date.getDate()) +
+    "-" +
+    pad(date.getMonth() + 1) +
+    "-" +
+    date.getFullYear() +
+    "-" +
+    pad(date.getHours()) +
+    ":" +
+    pad(date.getMinutes()) +
+    ":" +
+    pad(date.getSeconds())
+  );
+}
+
+// Helper: write logs
+function writeLog(message) {
+  const date = new Date();
+  const logFileName = path.join(logDir, `${formatFileDate(date)}.log`);
+  const timestamp = formatLogDate(date);
+  const logMessage = `[${timestamp}] ${message}\n`;
+
+  fs.appendFile(logFileName, logMessage, (err) => {
+    if (err) console.error("Error writing log:", err);
+  });
+}
+
+// Default route
 app.get("/", (req, res) => {
+  writeLog("Socket.IO server is running");
   res.json({
     message: "Socket.IO server is running"
   });
 });
 
-// JWT auth middleware for Socket.IO connections
-io.use((socket, next) => {
-  const token = socket.handshake.auth.token;
-  if (!token) {
-    return next(new Error("Authentication error: Token required"));
-  }
-  
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-   
-    socket.user = decoded; 
-    console.log("JWT verified successfully:");
-    next();
-  } catch (err) {
-    console.log("JWT verification failed:", err.message);
-    return next(new Error("Authentication error: Invalid token"));
-  }
-});
 io.on("connection", (socket) => {
+  writeLog(`Client connected: ${socket.id}`);
   console.log(`Client connected: ${socket.id}`);
 
   socket.on("join-room", async ({ chatRoomId }) => {
-      const userId = socket.user.sub || socket.user.id; 
-
-      try {
-       
-        const response = await axios.post(ROOM_ACCESS_URL, {
-          user_id: userId,
-          chat_room_id: chatRoomId,
-        }, {
-          headers: {
-            Authorization: `Bearer ${socket.handshake.auth.token}`, 
-          },
-        });
-        
-        if (response.data.allowed) {
-          const roomName = `chat_room_${chatRoomId}`;
-          socket.join(roomName);
-          console.log(`User ${userId} joined room: ${roomName}`);
-        } else {
-          //socket.emit("error", "Access denied to this chat room");
-          console.log(`User ${userId} denied access to room: ${chatRoomId}`);
-        }
-      } catch (err) {
-        console.error("Error checking room access:", err.message);
-        //socket.emit("error", "Could not verify room access");
-      }
-    });
+    try {
+      const roomName = `chat_room_${chatRoomId}`;
+      socket.join(roomName);
+      writeLog(`Client ${socket.id} joined room: ${roomName}`);
+      console.log(`User joined room: ${roomName}`);
+    } catch (err) {
+      writeLog(`Error checking room access: ${err.message}`);
+      console.error("Error checking room access:", err.message);
+    }
+  });
 
   socket.on("send-message", async (data) => {
     const roomName = `chat_room_${data.chat_room_id}`;
+    writeLog(`Message in ${roomName}: ${JSON.stringify(data)}`);
     console.log(`Received message in ${roomName}:`, data);
 
     io.to(roomName).emit("receive-message", data);
-
   });
 
   socket.on("disconnect", () => {
+    writeLog(`Client disconnected: ${socket.id}`);
     console.log(`Client disconnected: ${socket.id}`);
   });
 });
@@ -93,5 +113,6 @@ io.on("connection", (socket) => {
 // Start the server
 const PORT = 3000;
 server.listen(PORT, () => {
+  writeLog(`Socket.IO server running on port ${PORT}`);
   console.log(`Socket.IO server running on port ${PORT}`);
 });

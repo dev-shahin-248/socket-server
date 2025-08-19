@@ -21,7 +21,7 @@ pids
 # Logs
 logs
 *.log
-
+logs/
 # Coverage directory used by tools like istanbul
 coverage/
 *.lcov
